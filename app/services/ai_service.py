@@ -1,6 +1,6 @@
 import uuid
 
-from openai import AsyncOpenAI
+from groq import AsyncGroq
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -14,15 +14,15 @@ class AIService:
         self._client = None
 
     @property
-    def client(self) -> AsyncOpenAI:
+    def client(self) -> AsyncGroq:
         if self._client is None:
-            self._client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            self._client = AsyncGroq(api_key=settings.GROQ_API_KEY)
         return self._client
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _call_llm(self, prompt: str) -> str:
         response = await self.client.chat.completions.create(
-            model="gpt-4",
+            model="llama-3.1-70b-versatile",
             messages=[
                 {
                     "role": "system",
@@ -65,7 +65,7 @@ class AIService:
             issue_id=issue_id,
             version=current_max + 1,
             content=content,
-            model_used="gpt-4",
+            model_used="llama-3.1-70b-versatile",
             generated_by=user_id,
             tenant_id=tenant_id,
         )

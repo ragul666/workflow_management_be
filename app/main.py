@@ -93,6 +93,22 @@ app.include_router(ai.router, prefix="/api/v1")
 
 @app.websocket("/ws/{tenant_id}")
 async def websocket_endpoint(websocket: WebSocket, tenant_id: str):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="Missing authentication token")
+        return
+
+    from app.core.security import decode_token
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        await websocket.close(code=4001, reason="Invalid or expired token")
+        return
+
+    token_tenant = payload.get("tenant_id")
+    if token_tenant != tenant_id:
+        await websocket.close(code=4003, reason="Tenant mismatch")
+        return
+
     await ws_manager.connect(tenant_id, websocket)
     try:
         while True:

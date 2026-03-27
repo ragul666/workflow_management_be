@@ -17,7 +17,7 @@ class Tenant(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    users = relationship("User", back_populates="tenant", lazy="selectin")
-    issues = relationship("Issue", back_populates="tenant", lazy="selectin")
-    workflow_states = relationship("WorkflowState", back_populates="tenant", lazy="selectin")
-    workflow_transitions = relationship("WorkflowTransition", back_populates="tenant", lazy="selectin")
+    users = relationship("User", back_populates="tenant", lazy="noload")
+    issues = relationship("Issue", back_populates="tenant", lazy="noload")
+    workflow_states = relationship("WorkflowState", back_populates="tenant", lazy="noload")
+    workflow_transitions = relationship("WorkflowTransition", back_populates="tenant", lazy="noload")

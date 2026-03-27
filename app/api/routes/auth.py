@@ -80,26 +80,33 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    body: RegisterRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.core.rbac import get_user_roles
+    if "admin" not in get_user_roles(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can register new users"
+        )
+
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-
-    tenant_result = await db.execute(select(Tenant).where(Tenant.slug == body.tenant_slug))
-    tenant = tenant_result.scalar_one_or_none()
-    if not tenant:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
     user = User(
         email=body.email,
         hashed_password=hash_password(body.password),
         full_name=body.full_name,
-        tenant_id=tenant.id,
+        tenant_id=current_user.tenant_id,
     )
     db.add(user)
     await db.flush()
 
-    role_result = await db.execute(select(Role).where(Role.name == body.role))
+    safe_role = "user"
+    role_result = await db.execute(select(Role).where(Role.name == safe_role))
     role = role_result.scalar_one_or_none()
     if role:
         db.add(UserRole(user_id=user.id, role_id=role.id))
@@ -111,7 +118,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         full_name=user.full_name,
         is_active=user.is_active,
         tenant_id=user.tenant_id,
-        roles=[body.role] if role else [],
+        roles=[safe_role] if role else [],
         permissions=[],
         created_at=user.created_at,
     )
